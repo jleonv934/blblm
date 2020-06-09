@@ -2,10 +2,18 @@
 % Please edit documentation in R/blblm.R
 \name{blbcoef}
 \alias{blbcoef}
-\title{compute the coefficients from fit}
+\title{blbfcoef}
 \usage{
-blbcoef(fit)
+blbcoef(fit, formula)
+}
+\arguments{
+\item{fit}{individual lm model fit with cpp armadillo function}
+
+\item{formula}{formula to fit the bootstraped model}
+}
+\value{
+coef
 }
 \description{
-compute the coefficients from fit
+blbfcoef
 }

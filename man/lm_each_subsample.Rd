@@ -6,6 +6,15 @@
 \usage{
 lm_each_subsample(formula, data, n, B)
 }
+\arguments{
+\item{formula}{formula to fit the bootstraped model}
+
+\item{data}{subset data}
+
+\item{n}{number of obs in data}
+
+\item{B}{number of bootstraps}
+}
 \description{
 compute the estimates
 }

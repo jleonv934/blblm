@@ -1,0 +1,272 @@
+---
+title: "blblm-vignette"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{my-vignette}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+
+### blblm bootstraped linear regression function
+
+### blblm fuction overview:
+
+* blblm(formula, data, m = 10, B = 5000, n_cores = 1)
+    * formula: here we specify the linear regression formula
+    * data: a data frame 
+    * m: nummber of subsets of data 
+    * B: number of bootstraps
+    *n_cores: if n_cores greater than 1 is inputed then perllization will be used to compute the bootstrap
+
+```{r setup}
+library(blblm)
+```
+
+* to view help for blblm:
+```{r}
+?blblm
+```
+
+
+```{r}
+fit3 <- blblm(mpg ~ wt * hp, data = mtcars, m = 3, B = 100, n_cores = 3)
+```
+
+
+```{r}
+fit3$formula
+```
+
+### blblm coefficients:
+
+* blblm(blblm_model)
+    * input: here we specify the fitted blblm object
+    * returns: the intercept names and coefficient estimates are returned 
+    
+```{r}
+coef(fit3)
+```
+
+### printing blblm model details:
+
+* blblm(blblm_model)
+    * input: a fitted blblm object
+    * returns: the model formula 
+    
+```{r}
+print(fit3)
+```
+
+### blblm sigma:
+
+* blblm(blblm_model)
+    * input: a fitted blblm object
+    * returns: the model's sigma statistic 
+    
+```{r}
+sigma(fit3)
+```
+
+### blblm sigma with confidence interval:
+
+* blblm(blblm_model, confidence)
+    * input: 
+        * a fitted blblm object
+        * TRUE or FALSE for confidence intervals
+    * returns: the model's sigma statistic with CI or without 
+
+```{r}
+sigma(fit3, confidence = TRUE)
+```
+
+### predicting response with new observations using blblm model:
+
+* blblm(blblm_model, data_frame)
+    * input: 
+        * a fitted blblm object
+        * a data_frame of the new observations
+    * returns: a prediction of the response variable 
+```{r}
+predict(fit3, data.frame(wt = c(2.5,3) , hp = c(150, 170) ))
+```
+
+### predicting response and CI with new observations using blblm model:
+
+* blblm(blblm_model, data_frame, confidence = TRUE/FALSE)
+    * input: 
+        * a fitted blblm object
+        * a data_frame of the new observations
+        * confidence, specify TRUE to output results with CI and FALSE for no CI 
+    * returns: a prediction of the response variable with CI if confidence = TRUE
+    
+```{r}
+predict(fit3, data.frame(wt = c(2.5,3) , hp = c(150, 170)), confidence = TRUE )
+```
+
+### calculating confidence interals of coefficients:
+
+* blblm(blblm_model, variable names)
+    * input: 
+        * a fitted blblm object
+        * variable names, if no names are specified then all coeficients CI are autimatically returned
+    * returns: coeficient CI 
+    
+```{r}
+confint(fit3, c("wt", "hp"))
+```
+
+
+```{r}
+confint(fit3)
+```
+
+
+### improvements made to blblm:
+
+1.  Faster Linear Regression computation 
+    *  RcppArmadillo was used to implemement fast_lm in C++ 
+    *  This made the bootsrap process faster than the original base R. This is very beneficial because it speeds up run time for large boostraps 
+    
+1.  Ability to use parallelization.
+    *  Users have the ability to specify if they want to use parallelization. If no parameter n_cores is icuded in the blblm() fucntion then no parallelization is used. If the user chooses to use parallelization, they can specify how many cores to use.
+
+### implementation of blblm code:
+
+* Changes to blblm:
+    * parallelization was an added feature to blblm
+        * a parameter n_cores was added to allow the user to decide:
+        * if parallelization is used by selecting the number of cores otherwize no parallelization is used.
+    * this was accomplished through using an if else statement and by initializing n_cores = 1.
+```
+blblm <- function(formula, data, m = 10, B = 5000, n_cores = 1) {
+  data_list <- split_data(data, m)
+  # if else to initiate parallel process with specified cores
+  if (n_cores != 1) {
+    plan(multiprocess, workers = n_cores)
+    estimates <- future_map(
+      data_list,
+      ~ lm_each_subsample(formula = formula, data = ., n = nrow(data), B = B)
+    )
+  }
+  else {
+    estimates <- map(
+      data_list,
+      ~ lm_each_subsample(formula = formula, data = ., n = nrow(data), B = B)
+    )
+  }
+
+  res <- list(estimates = estimates, formula = formula)
+  class(res) <- "blblm"
+  invisible(res)
+}
+```
+    
+* Changes to lm1:
+    * a new linear regression model (fast_lm) was implemented using cpp and RcppArmadillo 
+        * the parameters for fast_lm were a design matrix (X), and a response variable(y), fast_lm(X,y)
+    * Lm1 had to be modified by weighting the design matrix and response before passing the parameters to fast_lm(X_tilda, y_tilda)    
+    
+```
+lm1 <- function(formula, data, freqs) {
+  # drop the original closure of formula,
+  # otherwise the formula will pick a wront variable from the global scope.
+  environment(formula) <- environment()
+  # Creating model matrix
+  X <- model.matrix(reformulate(attr(terms(formula), "term.labels")), data)
+  # extracting response variable from data
+  y <- as.matrix(data[, all.vars(formula)[1]])
+  #T ransforming data to use weights from freq
+  w <- freqs
+  rw <- sqrt(w)
+  rw <- as.vector(rw)
+  X_tilde <- rw * X
+  y_tilde <- rw * y
+  # fitting fast lm model from Rcpp Armadillo
+  fit <- fast_lm(X_tilde, y_tilde)
+  list(coef = blbcoef(fit, formula), sigma = blbsigma(fit))
+}
+```
+
+* fast_lm(X,y) implementation in C++:
+  * The slight modification to the RcppArmadillo example is that here residuals are also returned to later calculate sigma.
+  *due to the return format of fast_lm other functiions had to be modified as well such as blblfcoef( ), (others discussed below)
+
+```
+List fast_lm(const arma::mat& X, const arma::colvec& y) {
+  int n = X.n_rows, k = X.n_cols;
+
+  arma::colvec coef = arma::solve(X, y);    // fit model y ~ X
+  arma::colvec res  = y - X*coef;           // residuals
+
+  // std.errors of coefficients
+  double s2 = std::inner_product(res.begin(), res.end(), res.begin(), 0.0)/(n - k);
+
+  arma::colvec std_err = arma::sqrt(s2 * arma::diagvec(arma::pinv(arma::trans(X)*X)));
+
+  return List::create(Named("coefficients") = coef,
+                      Named("stderr")       = std_err,
+                      Named("res")  = res,
+                      Named("df.residual")  = n - k);
+}
+```
+
+* blblfcoef(fit, formula):
+  * blblfcoef was modified to take 2 parameters instead of just fit. This was done to name coefficient eatimates in each bootstrap.
+
+```
+blbcoef <- function(fit, formula) {
+  cf <- coef(fit) # extracting coefficents
+  S <- attr(terms(formula), "term.labels") #extracting variable names from formula
+  rownames(cf) <- c("(Intercept)", S) #naming coefficients
+  cf
+}
+```
+
+
+* confint(object, parm = NULL, level = 0.95, ...):
+  * This function was modified so that a list is returned since the changes made to blblm were not compatible woth the original confit function( )
+  * the same output is acheived, except that it is returned in list form. 
+
+```
+confint.blblm <- function(object, parm = NULL, level = 0.95, ...) {
+  if (is.null(parm)) {
+    parm <- attr(terms(object$formula), "term.labels")
+  }
+  alpha <- 1 - level
+  est <- object$estimates
+  ps <- seq(parm) + 1
+
+  mybiglist <- list()
+  for (p in ps) {
+    name <- parm[p - 1]
+    tmp <- map_mean(est, ~ map_dbl(., list("coef", p)) %>% quantile(c(alpha / 2, 1 - alpha / 2))) #
+    mybiglist[[name]] <- tmp
+  }
+  mybiglist
+}
+```
+
+### Some comparisons:
+
+
+* modified blblm package using fast_lm 
+
+```{r, out.width = "675px"}
+knitr::include_graphics("/Users/jesusleon/Desktop/fasttictoc.png")
+```
+
+* original blblm package 
+
+```{r, out.width = "675px"}
+knitr::include_graphics("/Users/jesusleon/Desktop/slowtictoc.png")
+```
+
+

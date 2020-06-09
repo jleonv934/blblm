@@ -2,12 +2,9 @@
 % Please edit documentation in R/blblm.R
 \docType{package}
 \name{blblm-package}
-\alias{blblm}
-\alias{blblm-package}
-\title{blblm: What the Package Does (Title Case)}
+\title{blblm: Bootstrap Linear Regression with optional Parallel Processing}
 \description{
-More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+Package allow users to perform bootstrap linear regression in a timely manner. This is acheived through the use of C functions to perform linear regression. Parallel Processing is also avaliable for use and the number of cores that are used can be specified as aparameter of the blblm function.
 }
 \details{
 Linear Regression with Little Bag of Bootstraps

@@ -6,6 +6,13 @@
 \usage{
 lm_each_boot(formula, data, n)
 }
+\arguments{
+\item{formula}{formula to fit the bootstraped model}
+
+\item{data}{subset data}
+
+\item{n}{number of obs in data}
+}
 \description{
 compute the regression estimates for a blb dataset
 }

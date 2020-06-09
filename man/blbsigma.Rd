@@ -6,6 +6,9 @@
 \usage{
 blbsigma(fit)
 }
+\arguments{
+\item{fit}{individual lm model}
+}
 \description{
 compute sigma from fit
 }

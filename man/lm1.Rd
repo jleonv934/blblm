@@ -6,6 +6,13 @@
 \usage{
 lm1(formula, data, freqs)
 }
+\arguments{
+\item{formula}{formula to fit the bootstraped model}
+
+\item{data}{subset data}
+
+\item{freqs}{frequency}
+}
 \description{
 estimate the regression estimates based on given the number of repetitions
 }
