@@ -260,13 +260,13 @@ confint.blblm <- function(object, parm = NULL, level = 0.95, ...) {
 * modified blblm package using fast_lm 
 
 ```{r, out.width = "675px"}
-knitr::include_graphics("/Users/jesusleon/Desktop/fasttictoc.png")
+knitr::include_graphics("fasttictoc.png")
 ```
 
 * original blblm package 
 
 ```{r, out.width = "675px"}
-knitr::include_graphics("/Users/jesusleon/Desktop/slowtictoc.png")
+knitr::include_graphics("./slowtictoc.png")
 ```
 
 
